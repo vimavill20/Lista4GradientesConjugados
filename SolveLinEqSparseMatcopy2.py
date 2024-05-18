@@ -35,27 +35,12 @@ class SolveLinearEquationsPCG:
         return x, norm_r
 
     def jacobi(self, omega, u, res):
-        # print(len(self.coords))
-        coords = np.array(self.coords)
-        # print(len(coords))
-        # D = np.array([self.data[self.ptr[i]] for i in range(len(self.ptr)-1)])
-        coords_Diagonalvalues =  [(i,coord) for i, coord in enumerate(coords) if coord[0] == coord[1]]
-        # print("len coords_Diagonalvalues: ",len(coords_Diagonalvalues))
-        # print("Coords index:", coords_Diagonalvalues)
-        Diagmatrix=np.zeros(2368)
-        # print("len diagmatrix: ",len(Diagmatrix))
-        data=np.array(self.data)
-        for i in range(len(coords_Diagonalvalues)-1):
-            Diagmatrix[coords_Diagonalvalues[i][1][1]]=data[coords_Diagonalvalues[i][0]]
-
-        D=Diagmatrix
-        # print("len D: ",len(D))
-        # print("len D: ",len(D))
+        D = self.get_diag_matrix()
         resnorm = np.linalg.norm(res)
         resloc = res.copy()
         delu = np.zeros(len(u))
-        delu = omega * resloc / D
-        # print("delu:",delu)
+        delu = omega * np.divide(resloc , D)
+        print("delu:",delu)
         resloc -= self.dot(delu)
         u += delu
         # u=1
@@ -172,14 +157,15 @@ class SolveLinearEquationsPCG:
             result[row] += self.data[i] * vector[col]
             i+=1
         return result
-        # result = np.zeros(len(vector)-1)
-        # print(max(self.coords))
-        # for i in range(len(self.data)-1):
-        #     result[self.coords[i][0]-1] += self.data[i] * vector[self.coords[i][1]-1]
-        # return result
-
-# Usage example
-
+    
+    def get_diag_matrix(self):
+        DiagMatrix = np.zeros(2368)
+        indexDiagMatrix = 0
+        for i in range(len(self.coords)):
+            if self.coords[i][0] == self.coords[i][1]:
+                DiagMatrix[indexDiagMatrix] = self.data[i]
+                indexDiagMatrix += 1
+        return DiagMatrix
 
 class CSRMatrix:
     def __init__(self, file_path, a):
@@ -357,14 +343,23 @@ print(len(coordenadas))
 print(len(data))
 print(len(col))
 lendiag=0
+DiagMatrix=np.zeros(2368)
+indexDiagMatrix=0
 for i in range(len(coordenadas)):
     if coordenadas[i][0]==coordenadas[i][1]:
         print([data[i],coordenadas[i]])
+        DiagMatrix[indexDiagMatrix]=data[i]
         lendiag+=1
+        indexDiagMatrix+=1
 print("lendiag:",lendiag)
-
-print(solver.iterate_jacobi(np.zeros(len(listvec), dtype='float64')))
-
+# print("DiagMatrix:",DiagMatrix[--1])
+a=solver.get_diag_matrix()
+print("DiagMatrix:",a)
+jacsol=solver.iterate_jacobi(np.zeros(len(listvec), dtype='float64'))
+print(len(jacsol[0]))
+print(jacsol[0])
+print(len(jacsol[1]))
+print(jacsol[1])
 
 # print(solver.pcg())
 
