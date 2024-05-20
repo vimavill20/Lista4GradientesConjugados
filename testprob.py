@@ -1,9 +1,6 @@
-from sys import getsizeof
 import numpy as np
-import math
-
 class SolveLinearEquationsPCG:
-    def __init__(self, data, col, ptr, coorden, b,DiagMat, num_iter, tol):
+    def __init__(self, data, col, ptr, coorden, b, num_iter, tol):
         self.data = data
         print("len data:",len(self.data))
         self.col = col
@@ -16,7 +13,6 @@ class SolveLinearEquationsPCG:
         print("len b:",len(self.b))
         self.num_iter = num_iter
         self.tol = tol
-        self.D=DiagMat
 
     def pcg(self):
         x = np.zeros(len(self.b))
@@ -40,12 +36,12 @@ class SolveLinearEquationsPCG:
     def jacobi(self, omega, u, res):
         D = self.get_diag_matrix()
         resnorm = np.linalg.norm(res)
-        resloc = resnorm.copy()
+        resloc = res.copy()
         delu = np.zeros(len(u))
-        delu = omega * np.divide(resloc, D)
+        delu =  np.divide(omega *resloc, D)
         resloc -= self.dot(delu)
-      
-        return u+delu, resloc
+        u += delu
+        return u, resloc
 
     def iterate_jacobi(self, solini):
         sol = np.array(solini, dtype='float64')
@@ -53,7 +49,7 @@ class SolveLinearEquationsPCG:
         resnorm = [np.linalg.norm(res)]
 
         for i in range(self.num_iter):
-            sol, res = self.jacobi(0.001, sol, res)
+            sol, res = self.jacobi(0.1, sol, res)
             resnorm.append(np.linalg.norm(res))
             # if resnorm[-1] >= resnorm[-2]:  # Changed > to >= for stability
             #     break
@@ -104,7 +100,6 @@ class SolveLinearEquationsPCG:
             delu[i] += resc[i] / self.data[self.ptr[i]]
 
         resc = res - self.dot(delu)
-        
         return u + delu, resc
 
     def iterative_conjugate_gradient_PCG(self, solini, method):
@@ -152,7 +147,7 @@ class SolveLinearEquationsPCG:
     #             result[i] += data[j] * vector[coords[col[j]]]
     #     return result
     def dot(self, vector):
-        result = np.zeros(len(self.ptr)-1)
+        result = np.zeros(len(vector))
         i=0
         # print("HOLA V")
         for coord in self.coords:
@@ -176,14 +171,13 @@ class SolveLinearEquationsPCG:
     #     return prod
         
     def get_diag_matrix(self):
-        DiagMatrix = np.zeros(2368)
+        DiagMatrix = np.zeros(25)
         indexDiagMatrix = 0
         for i in range(len(self.coords)):
             if self.coords[i][0] == self.coords[i][1]:
                 DiagMatrix[indexDiagMatrix] = self.data[i]
                 indexDiagMatrix += 1
         return DiagMatrix
-
 class CSRMatrix:
     def __init__(self, file_path, a):
         self.file_path = file_path
@@ -344,8 +338,6 @@ def processall_linesvec(file_path, a):
         return vec
 
 file_path='/Users/victorvillegassalabarria/Downloads/rhs.txt'
-# file_path='/Users/victorvillegassalabarria/Downloads/rhstest.txt'
-
 a=1
 listvec=processall_linesvec(file_path, 0)
 print("len vectores: ",len(listvec))
@@ -360,41 +352,17 @@ col = np.array(matrix.get_col())
 ptr = np.array(matrix.get_ptr())
 # print(len(ptr))
 coordenadas = list(matrix.get_coord())
-# print(coordenadas[-1])
-# print(coordenadas[-2])
-# print(coordenadas[0])
-# print(coordenadas[-1::-10])
-# print(coords)
-print(coordenadas)
-print(len(coordenadas))
-print(len(data))
-print(len(col))
-lendiag=0
-DiagMatrix=np.zeros(2368)
+DiagMatrix = np.zeros(len(ptr)-1)
 indexDiagMatrix=0
+lendiag=0
 for i in range(len(coordenadas)):
     if coordenadas[i][0]==coordenadas[i][1]:
         print([data[i],coordenadas[i]])
         DiagMatrix[indexDiagMatrix]=data[i]
         lendiag+=1
         indexDiagMatrix+=1
-print("lendiag:",lendiag)
-print("DiagMatrix:",DiagMatrix[-1])
-solver = SolveLinearEquationsPCG(data, col, ptr, coordenadas, b,DiagMatrix, num_iter, tol)
 
-# a=solver.get_diag_matrix()
-# print("DiagMatrix:",a)
-# print("len DiagMatrix:",len(a))
-#jacsol=solver.iterate_jacobi(np.zeros(len(listvec), dtype='float64'))
-#jacsol=solver.iterate_jacobi(np.zeros(len(listvec), dtype='float64'))
-
-# print(solver.pcg())
-
-print(solver.iterative_conjugate_gradient_PCG(np.array(len(listvec)), solver.SSOR))
-# jacsol=print(solver.iterative_conjugate_gradient_PCG(np.array(len(listvec)), solver.jacobi))
-# jacsol=solver.pcg()
-print("pcg")
-print(len(jacsol[0]))
+solver = SolveLinearEquationsPCG(data, col, ptr, coordenadas, b, num_iter, tol)
+jacsol=solver.pcg()
 print(jacsol[0])
-print(len(jacsol[1]))
 print(jacsol[1])
