@@ -175,6 +175,7 @@ class SolveLinearEquationsPCG:
         for i in range(self.num_iter):
             Ap = self.dot(p)
             alpha = np.dot(r.T, r) / np.dot( Ap,p.T)
+            print("alpha",i,":",alpha)
             x += alpha * p
             r = resk - alpha * Ap
             p = r + ((np.dot(r.T, r) / np.dot(resk.T, resk)) * p)
@@ -225,7 +226,7 @@ class SolveLinearEquationsPCG:
         # return u + delu, resc
         n = len(res)
         delu = np.zeros(n)
-        resc = res.copy()
+        resc = res
         omega=1
         delu[0] = omega * res[0] / self.Aij(0, 0)
 
@@ -404,11 +405,11 @@ coords=[]
 for i in range(len(col)):
     coords.append([row[i], col[i]])
 Solver = SolveLinearEquationsPCG(data, col, ptr, coords, b, 10, 1e-10)
-# a=Solver.pcg()
+a=Solver.pcg()
 solini=np.zeros(25)
 # a=Solver.iterative_conjugate_gradient_PCG(solini, Solver.jacobi)
 # a=Solver.SSOR(1, solini, b)
-a=Solver.iterative_conjugate_gradient_PCG(solini, Solver.SSOR)
+# a=Solver.iterative_conjugate_gradient_PCG(solini, Solver.SSOR)
 # a=Solver.iterative_SSOR(solini, 1)
 # a=Solver.iterate_jacobi(np.zeros(25))
 print("len a:",len(a))
