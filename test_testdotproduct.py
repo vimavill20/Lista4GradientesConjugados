@@ -417,8 +417,3 @@ print("----")
 print(a[1])
 
 
-# def Aij( i, j):
-#     if any ([i,j] == coord for coord in coords):
-#         return data[j]
-            
-#     return 0.0

@@ -14,34 +14,37 @@ class SolveLinearEquationsPCG:
         self.num_iter = num_iter
         self.tol = tol
 
-    def pcg(self):
-        x = np.zeros(len(self.b))
+    def pcg(self,solini):
+        # x = np.zeros(len(self.b))
+        x=solini.copy()
         r = self.b - self.dot(x)
-        print(np.sum(r)==np.sum(x))
+        # print(np.sum(r)==np.sum(x))
         p = r
         resk = r
         norm_r = [np.linalg.norm(r)]
 
         for i in range(self.num_iter):
             Ap = self.dot(p)
-            alpha = np.dot(r.T, r) / np.dot( Ap,p.T)
+            alpha = np.dot(r.T, r) / np.dot( self.dot(p),p.T)
             x += alpha * p
-            r = resk - alpha * Ap
-            p = r + ((np.dot(r.T, r) / np.dot(resk.T, resk)) * p)
-            resk = r
+            r = resk - (alpha * self.dot(p))
+
+            p = r + ((np.dot(r.T, r) / np.dot(resk.T, resk)) )
+            resk = r.copy()
             norm_r.append(np.linalg.norm(r))
 
         return x, norm_r
 
     def jacobi(self, omega, u, res):
+        # print("HOLA")
         D = self.get_diag_matrix()
         resnorm = np.linalg.norm(res)
         resloc = res.copy()
         delu = np.zeros(len(u))
-        delu =  np.divide(omega *resloc, D)
+        delu =  omega *np.divide(resloc, D)
         resloc -= self.dot(delu)
-        u += delu
-        return u, resloc
+        
+        return u+delu, resloc
 
     def iterate_jacobi(self, solini):
         sol = np.array(solini, dtype='float64')
@@ -49,17 +52,50 @@ class SolveLinearEquationsPCG:
         resnorm = [np.linalg.norm(res)]
 
         for i in range(self.num_iter):
-            sol, res = self.jacobi(0.1, sol, res)
+            sol, res = self.jacobi(1.0, sol, res)
             resnorm.append(np.linalg.norm(res))
             # if resnorm[-1] >= resnorm[-2]:  # Changed > to >= for stability
             #     break
 
         return sol, resnorm
 
+    
+
+    def gauss_seidel(self, u, res):
+        n = len(res)
+        delu = np.zeros(n)
+        resc = res.copy()
+        omega=1
+        delu[0] = omega * res[0] / self.Aij(0, 0)
+
+        for i in range(1, n):
+            lower_sum = self.InnerProductLowerRows(delu, i)
+            resc[i] -= lower_sum
+            delu[i] += omega * resc[i] / self.Aij(i, i)
+
+        resc = res - self.dot(delu)
+        return u + delu, resc
+
+    def gauss_seidel_bb(self, u, res):
+        
+        n = len(res)
+        omega=1
+        delu = np.zeros(n)
+        resc = res.copy()
+
+        delu[n - 1] = omega * res[n - 1] / self.Aij(n - 1, n - 1)
+
+        for i in range(n - 2, -1, -1):
+            upper_sum = self.InnerProductUpperRows(delu, i)
+            resc[i] -= upper_sum
+            delu[i] += omega * resc[i] / self.Aij(i, i)
+
+        resc = res - self.dot(delu)
+        return u + delu, resc
     def SSOR(self, omega, u, res):
-        delu, resc = self.gauss_seidel(u, res)
-        delu2, resc2 = self.gauss_seidel_bb(delu, resc)
-        return delu2, resc2
+        delu, res = self.gauss_seidel(u, res)
+        delu, res = self.gauss_seidel_bb(delu, res)
+        return delu, res
 
     def iterative_SSOR(self, solini, omega):
         sol = solini
@@ -72,39 +108,9 @@ class SolveLinearEquationsPCG:
 
         return sol, resnorm
 
-    def gauss_seidel(self, u, res):
-        n = len(res)
-        delu = [0] * n
-        resc = res.copy()
-        delu[0] = res[0] / self.data[0]
-
-        for i in range(1, n):
-            start = self.ptr[i]
-            end = self.ptr[i + 1]
-            resc[i] -= np.dot(self.data[start:end], delu[self.col[start:end]])
-            delu[i] += resc[i] / self.data[self.ptr[i + 1] - 1]
-
-        resc = res - self.dot(delu)
-        return u + delu, resc
-
-    def gauss_seidel_bb(self, u, res):
-        n = len(res)
-        delu = [0] * n
-        resc = res.copy()
-        delu[n-1] = res[n-1] / self.data[self.ptr[n-1]]
-
-        for i in range(n-2, -1, -1):
-            start = self.ptr[i]
-            end = self.ptr[i + 1]
-            resc[i] -= np.dot(self.data[start:end], delu[self.col[start:end]])
-            delu[i] += resc[i] / self.data[self.ptr[i]]
-
-        resc = res - self.dot(delu)
-        return u + delu, resc
-
     def iterative_conjugate_gradient_PCG(self, solini, method):
         sol = solini
-        zero = np.zeros(2368)
+        zero = np.zeros(len(sol))
         sol = zero
         res = self.b - self.dot(sol)
         z, _ = method(1, zero, res)
@@ -112,19 +118,31 @@ class SolveLinearEquationsPCG:
         p = z
         resk = res
         resnorm = [np.linalg.norm(res)]
-
+        print("iteraciones",self.num_iter)
         for i in range(self.num_iter):
-            alpha = np.dot(res.T, z) / np.dot(p.T, self.dot(p))
+            Ap= self.dot(p)
+            alpha = np.dot(res, z) / np.dot(p, self.dot(p))
             sol = sol + alpha * p
-            res = resk - alpha * self.dot(p)
+            res = resk - alpha * Ap
             z, _ = method(1, zero, res)
-            beta = np.dot(res.T, z) / np.dot(resk.T, zk)
+            beta = np.dot(res, z) / np.dot(resk, zk)
             zk = z
             p = z + beta * p
             resk = res
             resnorm.append(np.linalg.norm(res))
 
         return sol, resnorm
+    def Aij(self, i, j):
+        # if any ([i,j] == coords for coords in self.coords):
+        #     print("HOLA1")
+
+        #     return self.data[j]
+        # print("HOL2")
+        for k in range(self.ptr[i], self.ptr[i+1]):
+            if self.col[k] == j:
+                return self.data[k]
+        
+        return 0.0
 
     # def dot(self, vector):
     #     if len(vector) != len(self.ptr)-1:
@@ -158,6 +176,37 @@ class SolveLinearEquationsPCG:
             result[row] += self.data[i] * vector[col]
             i+=1
         return result
+    def InnerProductLowerRows(self, vector: np.array, row: int) -> float:
+        """
+        Multiply the lower part of the sparse matrix by a vector.
+        """
+        nelem = self.ptr[row + 1] - self.ptr[row]
+        ntotal = self.ptr[row]
+
+        sum = 0
+        for j in range(ntotal, ntotal + nelem):
+            if self.col[j] >= row:
+                continue
+
+            sum += self.data[j] * vector[self.col[j]]
+
+        return sum
+
+    def InnerProductUpperRows(self, vector: np.array, row: int) -> float:
+        """
+        Multiply the upper part of the sparse matrix by a vector.
+        """
+        nelem = self.ptr[row + 1] - self.ptr[row]
+        ntotal = self.ptr[row]
+
+        sum = 0
+        for j in range(ntotal, ntotal + nelem):
+            if self.col[j] <= row:
+                continue
+
+            sum += self.data[j] * vector[self.col[j]]
+
+        return sum
     # def dot(self, vector):
     #     print("HOLA C")
     #     prod = np.zeros(len(self.ptr) - 1)
@@ -171,7 +220,7 @@ class SolveLinearEquationsPCG:
     #     return prod
         
     def get_diag_matrix(self):
-        DiagMatrix = np.zeros(25)
+        DiagMatrix = np.zeros(len(self.ptr)-1)
         indexDiagMatrix = 0
         for i in range(len(self.coords)):
             if self.coords[i][0] == self.coords[i][1]:
@@ -339,10 +388,19 @@ def processall_linesvec(file_path, a):
 
 file_path='/Users/victorvillegassalabarria/Downloads/rhs.txt'
 a=1
-listvec=processall_linesvec(file_path, 0)
+import sys 
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+
+def processall_linesvec(file_path):
+    with open(file_path, "r") as f:
+        vector = np.array([float(x) for x in f.read().split(",")])      
+    
+    return vector
+
+listvec=processall_linesvec(file_path)
 print("len vectores: ",len(listvec))
 b=np.array(listvec,dtype='float64')
-num_iter = 10
+num_iter = 500
 tol = 1e-15
 data = list(matrix.get_data())
 # print(len(data))
@@ -357,12 +415,18 @@ indexDiagMatrix=0
 lendiag=0
 for i in range(len(coordenadas)):
     if coordenadas[i][0]==coordenadas[i][1]:
-        print([data[i],coordenadas[i]])
+        if coordenadas[i][0]<=100:
+            print([data[i],coordenadas[i]])
         DiagMatrix[indexDiagMatrix]=data[i]
         lendiag+=1
         indexDiagMatrix+=1
 
 solver = SolveLinearEquationsPCG(data, col, ptr, coordenadas, b, num_iter, tol)
-jacsol=solver.pcg()
+# jacsol=solver.iterate_jacobi(np.zeros(len(b)))
+# jacsol=solver.pcg(np.zeros(len(b)))
+# jacsol=solver.iterative_SSOR(np.zeros(len(b)), 1)
+jacsol=solver.iterative_conjugate_gradient_PCG(np.zeros(len(b)), solver.SSOR)
+# jacsol=solver.iterative_conjugate_gradient_PCG(np.zeros(len(b)), solver.jacobi)
+
 print(jacsol[0])
 print(jacsol[1])
