@@ -406,8 +406,18 @@ for i in range(len(col)):
     coords.append([row[i], col[i]])
 Solver = SolveLinearEquationsPCG(data, col, ptr, coords, b, 10, 1e-10)
 a=Solver.pcg()
+
+cc=a[1]
 solini=np.zeros(25)
-# a=Solver.iterative_conjugate_gradient_PCG(solini, Solver.jacobi)
+SSOR=Solver.SSOR(1, solini, b)
+#iterative_conjugate_gradient_PCG(solini, Solver.SSOR)
+cgssor=SSOR[1]
+JAC=Solver.iterate_jacobi(solini)
+#iterative_conjugate_gradient_PCG(solini, Solver.jacobi)
+cgj=JAC[1]
+print("cc: ",cc)
+print("cgssor: ",cgssor)
+print("cgj: ",cgj)
 # a=Solver.SSOR(1, solini, b)
 # a=Solver.iterative_conjugate_gradient_PCG(solini, Solver.SSOR)
 # a=Solver.iterative_SSOR(solini, 1)
@@ -416,5 +426,23 @@ print("len a:",len(a))
 print(a[0])
 print("----")
 print(a[1])
+import matplotlib.pyplot as plt
+
+plt.figure()
+# plt.plot(range(len(cc)), cc,color='sienna')
+# plt.plot(range(len(cgj)), cgj,color='LightSteelBlue')
+plt.plot(range(len(cgssor)), cgssor ,color='Gold')
+plt.xlabel('Number of Iterations')
+plt.ylabel('Residual Norm')
+plt.xlim(0,10)
+plt.ylim(1e-15, 10)
+plt.grid(True)
+plt.yscale('log')
+
+plt.legend(['SSOR'], facecolor='white', edgecolor='black')
+plt.title('Convergence of Conjugate Gradient Method')
+plt.show()
+# plt.title('Convergence of Conjugate Gradient with Jacobi Preconditioner')
+plt.show()
 
 
